@@ -205,20 +205,20 @@ def generate_sql_pattern(binlog_event, row=None, flashback=False, no_pk=False):
             )
             values = map(fix_object, row['values'].values())
         elif isinstance(binlog_event, UpdateRowsEvent):
-            template = 'UPDATE `{0}`.`{1}` SET {2} WHERE {3} LIMIT 1;'.format(
+            template = 'ALTER TABLE `{0}`.`{1}` UPDATE {2} WHERE {3};'.format(
                 binlog_event.schema, binlog_event.table,
                 ', '.join(['`%s`=%%s' % x for x in row['before_values'].keys()]),
                 ' AND '.join(map(compare_items, row['after_values'].items())))
             values = map(fix_object, list(row['before_values'].values())+list(row['after_values'].values()))
     else:
         if isinstance(binlog_event, WriteRowsEvent):
-            if no_pk:
-                # print binlog_event.__dict__
-                # tableInfo = (binlog_event.table_map)[binlog_event.table_id]
-                # if tableInfo.primary_key:
-                #     row['values'].pop(tableInfo.primary_key)
-                if binlog_event.primary_key:
-                    row['values'].pop(binlog_event.primary_key)
+            # if no_pk:
+            #     # print binlog_event.__dict__
+            #     # tableInfo = (binlog_event.table_map)[binlog_event.table_id]
+            #     # if tableInfo.primary_key:
+            #     #     row['values'].pop(tableInfo.primary_key)
+            #     if binlog_event.primary_key:
+            #         row['values'].pop(binlog_event.primary_key)
 
             template = 'INSERT INTO `{0}`.`{1}`({2}) VALUES ({3});'.format(
                 binlog_event.schema, binlog_event.table,
@@ -227,11 +227,20 @@ def generate_sql_pattern(binlog_event, row=None, flashback=False, no_pk=False):
             )
             values = map(fix_object, row['values'].values())
         elif isinstance(binlog_event, DeleteRowsEvent):
-            template = 'DELETE FROM `{0}`.`{1}` WHERE {2} LIMIT 1;'.format(
+            template = 'ALTER TABLE `{0}`.`{1}` DELETE WHERE {2};'.format(
                 binlog_event.schema, binlog_event.table, ' AND '.join(map(compare_items, row['values'].items())))
             values = map(fix_object, row['values'].values())
         elif isinstance(binlog_event, UpdateRowsEvent):
-            template = 'UPDATE `{0}`.`{1}` SET {2} WHERE {3} LIMIT 1;'.format(
+            if no_pk:
+                if binlog_event.primary_key:
+                   row['after_values'].pop(binlog_event.primary_key)
+                   row['before_values'].pop(binlog_event.primary_key)
+            print(row)
+            print("*"*10)
+            print(row['before_values'])
+            print('*'*20)
+            print(row['after_values'])
+            template = 'ALTER TABLE `{0}`.`{1}` UPDATE {2} WHERE {3};'.format(
                 binlog_event.schema, binlog_event.table,
                 ', '.join(['`%s`=%%s' % k for k in row['after_values'].keys()]),
                 ' AND '.join(map(compare_items, row['before_values'].items()))
